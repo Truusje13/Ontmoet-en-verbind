@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ambassadeur Connect</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1558b0;
+      --accent: #f4a261;
+      --accent-dark: #e07b39;
+      --green: #22c55e;
+      --red: #ef4444;
+      --bg: #f0f4ff;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --radius: 1.2rem;
+      --shadow: 0 4px 24px rgba(26,115,232,0.10);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem 1rem 3rem;
+    }
+    h1 { font-size: 1.8rem; font-weight: 800; color: var(--primary); text-align: center; letter-spacing: -0.02em; }
+    .tagline { color: var(--muted); font-size: 0.95rem; text-align: center; margin-top: 0.3rem; margin-bottom: 1.5rem; }
+
+    .screen { width: 100%; max-width: 480px; display: none; flex-direction: column; gap: 1rem; }
+    .screen.active { display: flex; }
+
+    .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 1.5rem; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--primary); }
+    .card p { font-size: 0.9rem; color: var(--muted); line-height: 1.6; }
+
+    label { font-size: 0.85rem; font-weight: 600; color: var(--muted); display: block; margin-bottom: 0.3rem; }
+    input[type="text"], input[type="number"], select {
+      width: 100%; padding: 0.7rem 1rem; border: 2px solid #e2e8f0;
+      border-radius: 0.7rem; font-size: 1rem; outline: none; transition: border-color 0.2s; background: #fff;
+    }
+    input:focus, select:focus { border-color: var(--primary); }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+      padding: 0.85rem 1.5rem; border: none; border-radius: 0.9rem;
+      font-size: 1rem; font-weight: 700; cursor: pointer; transition: transform 0.1s, box-shadow 0.2s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 2px 10px rgba(26,115,232,0.25); }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-accent { background: var(--accent); color: #fff; }
+    .btn-accent:hover { background: var(--accent-dark); }
+    .btn-outline { background: transparent; color: var(--primary); border: 2px solid var(--primary); }
+    .btn-outline:hover { background: #e8f0fe; }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-full { width: 100%; }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.85rem; }
+    .flex-row { display: flex; gap: 0.6rem; }
+    .flex-row .btn { flex: 1; }
+    .section-title { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.3rem; }
+    .alert { background: #fef9c3; border-radius: 0.7rem; padding: 0.75rem 1rem; font-size: 0.85rem; color: #713f12; line-height: 1.5; }
+
+    /* Participant list */
+    .participant-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 200px; overflow-y: auto; }
+    .participant-item {
+      display: flex; align-items: center; justify-content: space-between;
+      background: #f8fafc; border-radius: 0.6rem; padding: 0.5rem 0.8rem; font-size: 0.9rem;
+    }
+    .participant-item button { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; }
+
+    /* Question card */
+    .question-card {
+      background: linear-gradient(135deg, var(--primary) 0%, #4f8ef7 100%);
+      color: #fff; border-radius: var(--radius); padding: 2rem 1.5rem;
+      text-align: center; box-shadow: 0 8px 32px rgba(26,115,232,0.25);
+      min-height: 200px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem; position: relative; overflow: hidden;
+    }
+    .question-card::before {
+      content: ''; position: absolute; width: 200px; height: 200px;
+      background: rgba(255,255,255,0.07); border-radius: 50%; top: -60px; right: -60px;
+    }
+    .question-card .category-badge {
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      background: rgba(255,255,255,0.2); padding: 0.25rem 0.75rem; border-radius: 99px;
+    }
+    .question-card .question-text { font-size: 1.25rem; font-weight: 700; line-height: 1.4; position: relative; z-index: 1; }
+    .question-card .emoji { font-size: 2rem; }
+
+    /* Round info */
+    .round-info {
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--card-bg); border-radius: 0.8rem; padding: 0.75rem 1.2rem; box-shadow: var(--shadow);
+    }
+    .round-info .label { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+    .round-info .value { font-size: 1.1rem; font-weight: 800; color: var(--primary); }
+
+    /* Timer */
+    .timer-bar-wrap { background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden; }
+    .timer-bar { height: 100%; border-radius: 99px; background: var(--primary); transition: width 1s linear, background 0.5s; }
+    .timer-text { font-size: 0.85rem; color: var(--muted); text-align: right; margin-top: 0.3rem; font-weight: 600; }
+
+    /* Progress dots */
+    .progress-dots { display: flex; gap: 0.4rem; justify-content: center; flex-wrap: wrap; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #e2e8f0; }
+    .dot.done { background: var(--primary); }
+    .dot.current { background: var(--accent); transform: scale(1.3); }
+
+    /* Summary */
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    .summary-item { background: #f8fafc; border-radius: 0.8rem; padding: 0.8rem; text-align: center; }
+    .summary-item .num { font-size: 2rem; font-weight: 800; color: var(--primary); }
+    .summary-item .lbl { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+    .met-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 180px; overflow-y: auto; }
+    .met-item { background: #f0f4ff; border-radius: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+
+    /* QR code */
+    #qr-container { display: flex; justify-content: center; padding: 0.5rem 0; }
+    #qr-container canvas, #qr-container img { border-radius: 0.5rem; }
+
+    /* Participant view */
+    .partner-badge {
+      background: linear-gradient(135deg, #fff7ed, #fef3c7);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius); padding: 1.5rem; text-align: center;
+    }
+    .partner-badge .partner-label { font-size: 0.75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+    .partner-badge .partner-name { font-size: 2rem; font-weight: 800; color: var(--accent-dark); margin-top: 0.3rem; line-height: 1.2; }
+
+    .waiting-state { text-align: center; padding: 2rem 1rem; }
+    .waiting-state .big-emoji { font-size: 3.5rem; margin-bottom: 1rem; }
+    .waiting-state h2 { font-size: 1.2rem; color: var(--primary); margin-bottom: 0.5rem; }
+    .waiting-state p { color: var(--muted); font-size: 0.9rem; }
+
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); margin-right: 0.4rem; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .odd-out-badge {
+      background: #f0fdf4; border: 2px solid var(--green);
+      border-radius: var(--radius); padding: 1.5rem; text-align: center;
+    }
+
+    /* Pairs display */
+    .pairs-grid { display: flex; flex-direction: column; gap: 0.4rem; }
+    .pair-row {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: #f0f4ff; border-radius: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.9rem;
+    }
+
+    @media (max-width: 360px) {
+      h1 { font-size: 1.4rem; }
+      .question-card .question-text { font-size: 1.05rem; }
+    }
+  </style>
+</head>
+<body>
+
+<h1>🤝 Ambassadeur Connect</h1>
+<p class="tagline">Netwerken op een laagdrempelige manier</p>
+
+<!-- ===== LANDING ===== -->
+<div id="screen-landing" class="screen active">
+  <div class="card" style="text-align:center;">
+    <div style="font-size:3rem; margin-bottom:1rem;">🎯</div>
+    <h2 style="margin-bottom:0.5rem;">Welkom!</h2>
+    <p>Ben jij de facilitator die het spel beheert, of een deelnemer die meedoet?</p>
+    <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1.5rem;">
+      <button class="btn btn-primary btn-full" onclick="showScreen('screen-setup')">🎛️ Ik ben de facilitator</button>
+      <button class="btn btn-outline btn-full" onclick="showScreen('screen-join')">👤 Ik ben een deelnemer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SETUP (facilitator) ===== -->
+<div id="screen-setup" class="screen">
+  <div class="card">
+    <h2>Spelinstellingen</h2>
+    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+      <div style="flex:1; min-width:120px;">
+        <label for="rounds-input">Aantal rondes</label>
+        <input type="number" id="rounds-input" value="4" min="1" max="10" />
+      </div>
+      <div style="flex:1; min-width:120px;">
+        <label for="time-input">Tijd per ronde (min)</label>
+        <input type="number" id="time-input" value="5" min="1" max="20" />
+      </div>
+    </div>
+    <br/>
+    <label for="category-select">Vraagcategorieën</label>
+    <select id="category-select" multiple style="height:110px;">
+      <option value="werk" selected>💼 Werk & Rol</option>
+      <option value="ambities" selected>🚀 Ambities & Dromen</option>
+      <option value="ambassadeur" selected>🌟 Ambassadeurschap</option>
+      <option value="fun" selected>😄 Luchtig & Fun</option>
+      <option value="reflectie">🪞 Reflectie & Inzichten</option>
+    </select>
+    <p style="margin-top:0.5rem;">Houd Ctrl/Cmd ingedrukt voor meerdere selecties.</p>
+  </div>
+
+  <button class="btn btn-primary btn-full" onclick="startGame()" style="font-size:1.1rem; padding:1rem;">
+    🎯 Sessie aanmaken & QR-code tonen
+  </button>
+  <button class="btn btn-outline btn-full btn-sm" onclick="showScreen('screen-landing')">← Terug</button>
+</div>
+
+<!-- ===== JOIN (deelnemer) ===== -->
+<div id="screen-join" class="screen">
+  <div class="card">
+    <h2>Meedoen als deelnemer</h2>
+    <p>Voer de sessiecode in die de facilitator je geeft, en jouw naam.</p>
+    <br/>
+    <label for="join-code">Sessiecode</label>
+    <input type="text" id="join-code" placeholder="Bijv. ROOS7" autocomplete="off" style="text-transform:uppercase; letter-spacing:0.1em;" />
+    <br/><br/>
+    <label for="join-name">Jouw naam</label>
+    <input type="text" id="join-name" placeholder="Jouw naam" autocomplete="off" />
+    <br/><br/>
+    <button class="btn btn-primary btn-full" onclick="joinSession()">Deelnemen →</button>
+    <div id="join-error" style="color:var(--red); font-size:0.85rem; margin-top:0.5rem; display:none;"></div>
+  </div>
+  <button class="btn btn-outline btn-full btn-sm" onclick="showScreen('screen-landing')">← Terug</button>
+</div>
+
+<!-- ===== LOBBY (facilitator wacht op deelnemers) ===== -->
+<div id="screen-lobby" class="screen">
+  <div class="card">
+    <h2>Sessiecode</h2>
+    <div style="text-align:center; font-size:3rem; font-weight:900; letter-spacing:0.2em; color:var(--primary); padding:0.5rem 0;" id="session-code-display"></div>
+    <p style="text-align:center;">Deel deze code met deelnemers, of laat ze de QR-code scannen.</p>
+  </div>
+
+  <div class="card">
+    <h2>QR-code voor deelnemers</h2>
+    <p>Deelnemers scannen dit met hun telefoon en voeren hun naam in.</p>
+    <br/>
+    <div id="qr-container"></div>
+    <br/>
+    <div style="text-align:center; font-size:0.8rem; color:var(--muted); word-break:break-all;" id="join-url-display"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-bottom:0.6rem;">Ingelogde deelnemers (<span id="joined-count">0</span>)</div>
+    <div class="participant-list" id="joined-list"></div>
+  </div>
+
+  <div class="alert" id="lobby-alert" style="display:none;">⚠️ Voeg minimaal 2 deelnemers toe voor je start.</div>
+  <button class="btn btn-primary btn-full" style="font-size:1.1rem; padding:1rem;" onclick="beginFirstRound()">
+    ▶ Spel beginnen
+  </button>
+</div>
+
+<!-- ===== GAME (facilitator) ===== -->
+<div id="screen-game" class="screen">
+
+  <div class="round-info">
+    <div><div class="label">Ronde</div><div class="value" id="round-display">1 / 4</div></div>
+    <div style="text-align:center;"><div class="label">Vraag</div><div class="value" id="q-display">1 / 2</div></div>
+    <div style="text-align:right;"><div class="label">Online</div><div class="value" id="players-display">0</div></div>
+  </div>
+
+  <div class="card" style="padding:1rem 1.2rem;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+      <span class="section-title">Tijd resterend</span>
+      <div style="display:flex; gap:0.4rem;">
+        <button class="btn btn-outline btn-sm" id="pause-btn" onclick="togglePause()">⏸ Pauzeer</button>
+        <button class="btn btn-outline btn-sm" onclick="resetTimer()">↺ Reset</button>
+      </div>
+    </div>
+    <div class="timer-bar-wrap"><div class="timer-bar" id="timer-bar"></div></div>
+    <div class="timer-text" id="timer-text">5:00</div>
+  </div>
+
+  <div class="question-card" id="question-card">
+    <div class="emoji" id="q-emoji">🤔</div>
+    <div class="category-badge" id="q-category">Categorie</div>
+    <div class="question-text" id="q-text">Vraag verschijnt hier...</div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-bottom:0.6rem;">🔀 Koppels deze ronde</div>
+    <div class="pairs-grid" id="pairs-list"></div>
+  </div>
+
+  <div class="card">
+    <div class="section-title" style="margin-bottom:0.6rem;">Voortgang rondes</div>
+    <div class="progress-dots" id="progress-dots"></div>
+  </div>
+
+  <div class="flex-row">
+    <button class="btn btn-outline" onclick="prevQuestion()">← Vorige vraag</button>
+    <button class="btn btn-accent" onclick="nextQuestion()">Volgende vraag →</button>
+  </div>
+
+  <button class="btn btn-primary btn-full" onclick="nextRound()" id="next-round-btn">
+    Volgende ronde ➜
+  </button>
+</div>
+
+<!-- ===== PARTICIPANT VIEW ===== -->
+<div id="screen-participant" class="screen">
+
+  <div class="round-info">
+    <div><div class="label">Ronde</div><div class="value" id="p-round-display">—</div></div>
+    <div style="text-align:center;"><div class="label">Vraag</div><div class="value" id="p-q-display">—</div></div>
+    <div style="text-align:right;"><div class="label"><span class="status-dot"></span>Live</div></div>
+  </div>
+
+  <div id="p-waiting" class="card waiting-state">
+    <div class="big-emoji">⏳</div>
+    <h2>Wachten op de facilitator…</h2>
+    <p>Het spel begint zo. Houd dit scherm open!</p>
+  </div>
+
+  <div id="p-active" style="display:none; flex-direction:column; gap:1rem;">
+
+    <div id="p-partner-badge" class="partner-badge">
+      <div class="partner-label">Jouw gesprekspartner deze ronde</div>
+      <div class="partner-name" id="p-partner-name">—</div>
+    </div>
+
+    <div class="card" style="padding:1rem 1.2rem;">
+      <div class="timer-bar-wrap"><div class="timer-bar" id="p-timer-bar"></div></div>
+      <div class="timer-text" id="p-timer-text">5:00</div>
+    </div>
+
+    <div class="question-card">
+      <div class="emoji" id="p-q-emoji">🤔</div>
+      <div class="category-badge" id="p-q-category">Categorie</div>
+      <div class="question-text" id="p-q-text">Vraag verschijnt hier...</div>
+    </div>
+
+    <div class="card">
+      <div class="section-title" style="margin-bottom:0.4rem;">Tips voor een goed gesprek</div>
+      <p style="font-size:0.85rem;">Luister actief • Stel doorvragen • Deel ook zelf iets • Wees nieuwsgierig</p>
+    </div>
+  </div>
+
+  <div id="p-finished" class="card waiting-state" style="display:none;">
+    <div class="big-emoji">🎉</div>
+    <h2>Alle rondes gespeeld!</h2>
+    <p>Bedankt voor je deelname. Fijn dat je er was!</p>
+  </div>
+</div>
+
+<!-- ===== SUMMARY (facilitator) ===== -->
+<div id="screen-summary" class="screen">
+  <div class="card" style="text-align:center;">
+    <div style="font-size:3rem; margin-bottom:0.5rem;">🎉</div>
+    <h2 style="font-size:1.4rem; color:var(--primary);">Gefeliciteerd!</h2>
+    <p>Alle rondes zijn gespeeld. Goed gedaan, ambassadeurs!</p>
+  </div>
+  <div class="summary-grid" id="summary-grid"></div>
+  <div class="card">
+    <div class="section-title" style="margin-bottom:0.6rem;">Ontmoetingen per deelnemer</div>
+    <div class="met-list" id="met-list"></div>
+  </div>
+  <div class="card">
+    <h2>Reflectievraag voor de groep</h2>
+    <p id="reflection-q" style="font-size:1rem; line-height:1.6; color:var(--text); margin-top:0.5rem;"></p>
+  </div>
+  <button class="btn btn-danger btn-full" onclick="endSession()">🗑️ Sessie beëindigen & opruimen</button>
+  <button class="btn btn-outline btn-full" onclick="restartGame()">↺ Nieuw spel starten</button>
+</div>
+
+<script>
+// =====================
+// FIREBASE
+// =====================
+const firebaseConfig = {
+  apiKey: "AIzaSyCFUF5kayOc8fXgg02K7E9qffNFj7PfoY4",
+  authDomain: "ontmoet-en-verbind.firebaseapp.com",
+  databaseURL: "https://ontmoet-en-verbind-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ontmoet-en-verbind",
+  storageBucket: "ontmoet-en-verbind.firebasestorage.app",
+  messagingSenderId: "17340350752",
+  appId: "1:17340350752:web:7cde540ef7332a1ce39745"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// =====================
+// QUESTIONS
+// =====================
+const QUESTIONS = {
+  werk: [
+    { emoji: '💼', text: 'Wat is jouw rol als ambassadeur en wat maakt jou daar uniek in?' },
+    { emoji: '🛠️', text: 'Welk project of initiatief ben je momenteel het meest trots op?' },
+    { emoji: '🤝', text: 'Hoe zou jij omschrijven hoe jij samenwerkt met collega\'s?' },
+    { emoji: '📅', text: 'Hoe ziet jouw ideale werkdag eruit?' },
+    { emoji: '🔑', text: 'Welke vaardigheid heeft je het meest geholpen in je werk als ambassadeur?' },
+  ],
+  ambities: [
+    { emoji: '🚀', text: 'Wat is één ding dat je dit jaar wilt bereiken als ambassadeur?' },
+    { emoji: '🌍', text: 'Als je één verandering in de organisatie kon aanbrengen, wat zou dat zijn?' },
+    { emoji: '⭐', text: 'Waar wil jij over vijf jaar staan?' },
+    { emoji: '💡', text: 'Welk idee heb je al lang maar nog niet uitgevoerd?' },
+    { emoji: '🏆', text: 'Op welk persoonlijk succes ben je het meest trots?' },
+  ],
+  ambassadeur: [
+    { emoji: '🌟', text: 'Wat betekent het ambassadeurschap voor jou persoonlijk?' },
+    { emoji: '📣', text: 'Hoe vertel jij buiten de organisatie over je werk als ambassadeur?' },
+    { emoji: '🔗', text: 'Welke verbinding of samenwerking heeft jou als ambassadeur het meest opgeleverd?' },
+    { emoji: '💬', text: 'Wat is de mooiste reactie die je ooit kreeg toen je iemand vertelde over jouw ambassadeursrol?' },
+    { emoji: '🎯', text: 'Welke boodschap wil jij als ambassadeur overbrengen op anderen?' },
+  ],
+  fun: [
+    { emoji: '☕', text: 'Koffie of thee — en waarom? Vertel iets over jezelf via die keuze.' },
+    { emoji: '🏖️', text: 'Wat doe jij het liefst op een vrije dag?' },
+    { emoji: '🎵', text: 'Welk nummer zou jouw persoonlijk ambassadeurs-thema zijn?' },
+    { emoji: '🦸', text: 'Welke superkracht zou jij willen hebben op het werk?' },
+    { emoji: '🌮', text: 'Je organiseert een etentje voor je team — wat staat er op het menu en waarom?' },
+    { emoji: '📚', text: 'Welk boek, film of podcast heeft jou recent geïnspireerd?' },
+    { emoji: '🐾', text: 'Als jij een dier was dat jouw werkstijl vertegenwoordigt, welk dier zou dat zijn?' },
+  ],
+  reflectie: [
+    { emoji: '🪞', text: 'Wat heb jij het afgelopen jaar geleerd over jezelf als ambassadeur?' },
+    { emoji: '🔋', text: 'Wat geeft jou energie in je werk en wat kost energie?' },
+    { emoji: '💭', text: 'Welke aanname over je werk ben je dit jaar kwijtgeraakt?' },
+    { emoji: '🌱', text: 'Op welk vlak wil jij nog groeien?' },
+    { emoji: '🎁', text: 'Welk advies zou jij aan je begin-ambassadeur-zelf geven?' },
+  ],
+};
+
+const REFLECTIONS = [
+  'Wat neem jij vandaag mee uit de gesprekken die je hebt gevoerd?',
+  'Welke connectie die je vandaag hebt gemaakt wil je verder uitbouwen?',
+  'Wat heeft jou vandaag verrast in de gesprekken met je collega\'s?',
+  'Welk inzicht uit een gesprek van vandaag wil je meenemen naar je werk als ambassadeur?',
+];
+
+// =====================
+// STATE
+// =====================
+let participants = [];
+let totalRounds = 4;
+let minutesPerRound = 5;
+let selectedCategories = ['werk', 'ambities', 'ambassadeur', 'fun'];
+let currentRound = 0;
+let currentQIndex = 0;
+let roundQuestions = [];
+let allPairs = [];
+let metHistory = {};
+let gameQuestions = [];
+let timerInterval = null;
+let timerSecondsLeft = 0;
+let timerPaused = false;
+let sessionCode = null;
+let sessionRef = null;
+let myName = null;
+let isParticipant = false;
+let joinedParticipants = {};
+
+// =====================
+// SCREEN
+// =====================
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// =====================
+// START GAME (facilitator — geen namen invullen)
+// =====================
+function startGame() {
+  totalRounds = parseInt(document.getElementById('rounds-input').value) || 4;
+  minutesPerRound = parseInt(document.getElementById('time-input').value) || 5;
+  selectedCategories = getSelectedCategories();
+
+  let pool = buildQuestionPool(selectedCategories);
+  while (pool.length < totalRounds * 2) pool = pool.concat(buildQuestionPool(selectedCategories));
+  gameQuestions = pool;
+
+  sessionCode = generateCode();
+  sessionRef = db.ref('sessions/' + sessionCode);
+  sessionRef.set({
+    status: 'lobby',
+    totalRounds,
+    minutesPerRound,
+    currentRound: 0,
+    currentQIndex: 0,
+    timerStart: null,
+    timerPaused: false,
+    questions: gameQuestions,
+  });
+
+  // Show lobby
+  document.getElementById('session-code-display').textContent = sessionCode;
+  const joinUrl = `${location.origin}${location.pathname}?join=${sessionCode}`;
+  document.getElementById('join-url-display').textContent = joinUrl;
+  document.getElementById('qr-container').innerHTML = '';
+  new QRCode(document.getElementById('qr-container'), { text: joinUrl, width: 180, height: 180, correctLevel: QRCode.CorrectLevel.M });
+
+  // Listen for joined participants
+  sessionRef.child('joined').on('value', snap => {
+    joinedParticipants = snap.val() || {};
+    renderJoinedList();
+  });
+
+  showScreen('screen-lobby');
+}
+
+function renderJoinedList() {
+  const names = Object.values(joinedParticipants);
+  document.getElementById('joined-count').textContent = names.length;
+  document.getElementById('joined-list').innerHTML = names.map(n =>
+    `<div class="participant-item"><span>👤 ${n}</span></div>`
+  ).join('') || '<div style="color:var(--muted);font-size:0.85rem;padding:0.3rem;">Nog niemand ingelogd…</div>';
+}
+
+function beginFirstRound() {
+  participants = Object.values(joinedParticipants);
+  if (participants.length < 2) {
+    document.getElementById('lobby-alert').style.display = 'block';
+    return;
+  }
+  document.getElementById('lobby-alert').style.display = 'none';
+
+  // Generate pairings now that we know who joined
+  allPairs = generatePairings(participants, totalRounds);
+  participants.forEach(p => metHistory[p] = new Set());
+
+  // Push pairs to Firebase so participants can see their partner
+  sessionRef.update({
+    participants,
+    pairs: allPairs.map(round => round.map(pair => pair.map(p => p || ''))),
+  });
+
+  currentRound = 0;
+  showRound(currentRound);
+  showScreen('screen-game');
+}
+
+// =====================
+// ROUND
+// =====================
+function showRound(roundIndex) {
+  const qStart = roundIndex * 2;
+  roundQuestions = gameQuestions.slice(qStart, qStart + 2);
+  currentQIndex = 0;
+
+  const pairs = allPairs[roundIndex] || [];
+  pairs.forEach(([a, b]) => {
+    if (a && b) { metHistory[a] && metHistory[a].add(b); metHistory[b] && metHistory[b].add(a); }
+  });
+
+  pushStateToFirebase(roundIndex, 0, 'playing');
+  renderRoundUI(roundIndex);
+  renderQuestion();
+  startTimer();
+}
+
+function pushStateToFirebase(roundIndex, qIdx, status) {
+  if (!sessionRef) return;
+  const q = gameQuestions[roundIndex * 2 + qIdx] || gameQuestions[roundIndex * 2];
+  sessionRef.update({
+    status,
+    currentRound: roundIndex,
+    currentQIndex: qIdx,
+    currentQuestion: q || null,
+    timerStart: firebase.database.ServerValue.TIMESTAMP,
+    timerDuration: minutesPerRound * 60,
+    timerPaused: false,
+  });
+}
+
+function renderRoundUI(roundIndex) {
+  document.getElementById('round-display').textContent = `${roundIndex + 1} / ${totalRounds}`;
+  document.getElementById('players-display').textContent = Object.keys(joinedParticipants).length;
+  document.getElementById('next-round-btn').textContent =
+    roundIndex + 1 >= totalRounds ? '🏁 Spel beëindigen' : 'Volgende ronde ➜';
+
+  const pairs = allPairs[roundIndex] || [];
+  document.getElementById('pairs-list').innerHTML = pairs.map(([a, b]) =>
+    `<div class="pair-row">👤 ${a} <span style="color:var(--muted)">↔</span> 👤 ${b || '<em>odd one out</em>'}</div>`
+  ).join('');
+
+  document.getElementById('progress-dots').innerHTML = Array.from({length: totalRounds}, (_, i) =>
+    `<div class="dot ${i < roundIndex ? 'done' : i === roundIndex ? 'current' : ''}"></div>`
+  ).join('');
+}
+
+function renderQuestion() {
+  const q = roundQuestions[currentQIndex];
+  if (!q) return;
+  document.getElementById('q-emoji').textContent = q.emoji;
+  document.getElementById('q-text').textContent = q.text;
+  document.getElementById('q-category').textContent = getCategoryLabel(q);
+  document.getElementById('q-display').textContent = `${currentQIndex + 1} / ${roundQuestions.length}`;
+
+  // Push to Firebase
+  if (sessionRef) {
+    sessionRef.update({ currentQuestion: q, currentQIndex });
+  }
+}
+
+function nextQuestion() {
+  if (currentQIndex < roundQuestions.length - 1) { currentQIndex++; renderQuestion(); }
+}
+function prevQuestion() {
+  if (currentQIndex > 0) { currentQIndex--; renderQuestion(); }
+}
+
+function nextRound() {
+  stopTimer();
+  currentRound++;
+  if (currentRound >= totalRounds) {
+    if (sessionRef) sessionRef.update({ status: 'finished' });
+    showSummary();
+  } else {
+    showRound(currentRound);
+  }
+}
+
+// =====================
+// TIMER
+// =====================
+function startTimer() {
+  stopTimer();
+  timerSecondsLeft = minutesPerRound * 60;
+  timerPaused = false;
+  document.getElementById('pause-btn').textContent = '⏸ Pauzeer';
+  updateTimerUI();
+  timerInterval = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  if (timerPaused) return;
+  timerSecondsLeft--;
+  updateTimerUI();
+  if (timerSecondsLeft <= 0) {
+    stopTimer();
+    document.getElementById('timer-text').textContent = '⏰ Tijd is om!';
+    setBarColor(document.getElementById('timer-bar'), 0);
+  }
+}
+
+function updateTimerUI() {
+  const total = minutesPerRound * 60;
+  const pct = (timerSecondsLeft / total) * 100;
+  const mins = Math.floor(timerSecondsLeft / 60);
+  const secs = timerSecondsLeft % 60;
+  const txt = `${mins}:${String(secs).padStart(2,'0')}`;
+  document.getElementById('timer-text').textContent = txt;
+  document.getElementById('timer-bar').style.width = pct + '%';
+  setBarColor(document.getElementById('timer-bar'), pct);
+}
+
+function setBarColor(el, pct) {
+  if (pct > 50) el.style.background = 'var(--primary)';
+  else if (pct > 20) el.style.background = 'var(--accent)';
+  else el.style.background = 'var(--red)';
+}
+
+function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+
+function togglePause() {
+  timerPaused = !timerPaused;
+  document.getElementById('pause-btn').textContent = timerPaused ? '▶ Hervat' : '⏸ Pauzeer';
+  if (sessionRef) sessionRef.update({ timerPaused });
+}
+
+function resetTimer() {
+  stopTimer(); timerSecondsLeft = minutesPerRound * 60; timerPaused = false;
+  document.getElementById('pause-btn').textContent = '⏸ Pauzeer';
+  updateTimerUI();
+  timerInterval = setInterval(tickTimer, 1000);
+  if (sessionRef) sessionRef.update({ timerStart: firebase.database.ServerValue.TIMESTAMP, timerPaused: false });
+}
+
+// =====================
+// JOIN (participant)
+// =====================
+function joinSession() {
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  const name = document.getElementById('join-name').value.trim();
+  const errEl = document.getElementById('join-error');
+  errEl.style.display = 'none';
+
+  if (!code || !name) { showJoinError('Vul een sessiecode en jouw naam in.'); return; }
+
+  db.ref('sessions/' + code).once('value').then(snap => {
+    const session = snap.val();
+    if (!session) { showJoinError('Sessie niet gevonden. Controleer de code.'); return; }
+    if (session.status === 'finished') { showJoinError('Deze sessie is al afgelopen.'); return; }
+
+    sessionCode = code;
+    sessionRef = db.ref('sessions/' + code);
+    myName = name;
+    isParticipant = true;
+
+    // Register
+    const key = name.replace(/[.#$[\]]/g, '_');
+    sessionRef.child('joined/' + key).set(name);
+
+    // Listen to state
+    sessionRef.on('value', snap => {
+      const s = snap.val();
+      if (!s) return;
+      updateParticipantView(s);
+    });
+
+    showScreen('screen-participant');
+  });
+}
+
+function showJoinError(msg) {
+  const el = document.getElementById('join-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+let pTimerInterval = null;
+
+function updateParticipantView(state) {
+  const roundIndex = state.currentRound || 0;
+  const totalR = state.totalRounds || 4;
+  const q = state.currentQuestion;
+  const status = state.status;
+
+  document.getElementById('p-round-display').textContent = `${roundIndex + 1} / ${totalR}`;
+  document.getElementById('p-q-display').textContent = q ? `${(state.currentQIndex || 0) + 1}` : '—';
+
+  if (status === 'finished') {
+    document.getElementById('p-waiting').style.display = 'none';
+    document.getElementById('p-active').style.display = 'none';
+    document.getElementById('p-finished').style.display = 'block';
+    clearInterval(pTimerInterval);
+    return;
+  }
+
+  if (status === 'lobby' || status !== 'playing') {
+    document.getElementById('p-waiting').style.display = 'block';
+    document.getElementById('p-active').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('p-waiting').style.display = 'none';
+  document.getElementById('p-active').style.display = 'flex';
+
+  // Partner
+  const pairs = state.pairs ? state.pairs[roundIndex] : [];
+  let partner = null;
+  let isOdd = false;
+  if (pairs) {
+    for (const pair of pairs) {
+      if (pair[0] === myName) { partner = pair[1] || null; if (!pair[1]) isOdd = true; break; }
+      if (pair[1] === myName) { partner = pair[0] || null; break; }
+    }
+  }
+
+  const badge = document.getElementById('p-partner-badge');
+  if (isOdd || !partner) {
+    badge.className = 'odd-out-badge';
+    badge.innerHTML = `<div class="partner-label">Deze ronde</div><div style="font-size:1.5rem; font-weight:800; color:var(--green); margin-top:0.3rem;">🌿 Even op adem komen</div><p style="color:var(--muted);font-size:0.85rem;margin-top:0.5rem;">Je kunt deze ronde observeren of de vraag alvast overdenken.</p>`;
+  } else {
+    badge.className = 'partner-badge';
+    badge.innerHTML = `<div class="partner-label">Jouw gesprekspartner deze ronde</div><div class="partner-name">${partner}</div>`;
+  }
+
+  // Question
+  if (q) {
+    document.getElementById('p-q-emoji').textContent = q.emoji || '🤔';
+    document.getElementById('p-q-text').textContent = q.text || '';
+    document.getElementById('p-q-category').textContent = q.category || '';
+  }
+
+  // Timer — sync from server timestamp
+  clearInterval(pTimerInterval);
+  const duration = (state.timerDuration || 300);
+  const timerStart = state.timerStart || Date.now();
+  const paused = state.timerPaused || false;
+
+  function tickP() {
+    if (paused) return;
+    const elapsed = Math.floor((Date.now() - timerStart) / 1000);
+    const left = Math.max(0, duration - elapsed);
+    const mins = Math.floor(left / 60);
+    const secs = left % 60;
+    document.getElementById('p-timer-text').textContent = left === 0 ? '⏰ Tijd is om!' : `${mins}:${String(secs).padStart(2,'0')}`;
+    document.getElementById('p-timer-bar').style.width = ((left / duration) * 100) + '%';
+    setBarColor(document.getElementById('p-timer-bar'), (left / duration) * 100);
+  }
+  tickP();
+  pTimerInterval = setInterval(tickP, 1000);
+}
+
+// Auto-join via URL param
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.has('join')) {
+  const code = urlParams.get('join');
+  document.getElementById('join-code').value = code;
+  showScreen('screen-join');
+}
+
+// =====================
+// SUMMARY
+// =====================
+function showSummary() {
+  showScreen('screen-summary');
+  const totalConnections = Object.values(metHistory).reduce((s, set) => s + set.size, 0) / 2;
+  const maxMet = Math.max(0, ...Object.values(metHistory).map(s => s.size));
+
+  document.getElementById('summary-grid').innerHTML = `
+    <div class="summary-item"><div class="num">${participants.length}</div><div class="lbl">Deelnemers</div></div>
+    <div class="summary-item"><div class="num">${totalRounds}</div><div class="lbl">Rondes gespeeld</div></div>
+    <div class="summary-item"><div class="num">${Math.round(totalConnections)}</div><div class="lbl">Connecties gemaakt</div></div>
+    <div class="summary-item"><div class="num">${maxMet}</div><div class="lbl">Max. ontmoetingen</div></div>
+  `;
+  document.getElementById('met-list').innerHTML = participants.map(p =>
+    `<div class="met-item">👤 <strong>${p}</strong> — ontmoette: ${[...metHistory[p]].join(', ') || '—'}</div>`
+  ).join('');
+  document.getElementById('reflection-q').textContent = REFLECTIONS[Math.floor(Math.random() * REFLECTIONS.length)];
+}
+
+function endSession() {
+  if (sessionRef) { sessionRef.remove(); sessionRef = null; }
+  restartGame();
+}
+
+function restartGame() {
+  participants = []; metHistory = {}; sessionCode = null; isParticipant = false; myName = null;
+  showScreen('screen-landing');
+  renderParticipantList();
+}
+
+// =====================
+// UTILS
+// =====================
+function generateCode() {
+  const words = ['ROOS','STER','BOOM','GOLF','BERG','MAAN','ZON','WOL','DAL','STROOM'];
+  return words[Math.floor(Math.random() * words.length)] + Math.floor(Math.random() * 9 + 1);
+}
+
+function getSelectedCategories() {
+  const sel = document.getElementById('category-select');
+  const cats = Array.from(sel.selectedOptions).map(o => o.value);
+  return cats.length ? cats : ['werk'];
+}
+
+function buildQuestionPool(categories) {
+  let pool = [];
+  categories.forEach(cat => { if (QUESTIONS[cat]) pool = pool.concat(QUESTIONS[cat]); });
+  return shuffle(pool);
+}
+
+function generatePairings(names, rounds) {
+  const result = [];
+  const usedPairs = new Set();
+  for (let r = 0; r < rounds; r++) {
+    let list = shuffle([...names]);
+    let attempt = 0;
+    let pairList = makePairs(list);
+    while (attempt < 20 && hasRepeatPairs(pairList, usedPairs)) { list = shuffle([...names]); pairList = makePairs(list); attempt++; }
+    pairList.forEach(([a, b]) => { if (a && b) usedPairs.add([a,b].sort().join('|||')); });
+    result.push(pairList);
+  }
+  return result;
+}
+
+function makePairs(list) {
+  const arr = [...list];
+  if (arr.length % 2 !== 0) arr.push(null);
+  const pairs = [];
+  for (let i = 0; i < arr.length; i += 2) pairs.push([arr[i], arr[i+1]]);
+  return pairs;
+}
+
+function hasRepeatPairs(pairs, used) {
+  return pairs.some(([a, b]) => a && b && used.has([a,b].sort().join('|||')));
+}
+
+function getCategoryLabel(q) {
+  const labels = { werk:'Werk & Rol', ambities:'Ambities', ambassadeur:'Ambassadeurschap', fun:'Luchtig', reflectie:'Reflectie' };
+  for (const [cat, qs] of Object.entries(QUESTIONS)) {
+    if (qs.some(x => x.text === q.text)) return labels[cat] || '';
+  }
+  return '';
+}
+
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+  return arr;
+}
+
+function esc(s) { return s.replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+</script>
+</body>
+</html>
