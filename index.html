@@ -201,10 +201,10 @@
     </div>
     <br/>
     <label for="category-select">Vraagcategorieën</label>
-    <select id="category-select" multiple style="height:110px;">
-      <option value="werk" selected>💼 Werk & Rol</option>
+    <select id="category-select" multiple style="height:130px;">
+      <option value="werk" selected>💼 Werk & Collega's</option>
       <option value="ambities" selected>🚀 Ambities & Dromen</option>
-      <option value="ambassadeur" selected>🌟 Ambassadeurschap</option>
+      <option value="kennis" selected>🗺️ Elkaar leren kennen</option>
       <option value="fun" selected>😄 Luchtig & Fun</option>
       <option value="reflectie">🪞 Reflectie & Inzichten</option>
     </select>
@@ -397,41 +397,47 @@ const db = firebase.database();
 // =====================
 const QUESTIONS = {
   werk: [
-    { emoji: '💼', text: 'Wat is jouw rol als ambassadeur en wat maakt jou daar uniek in?' },
-    { emoji: '🛠️', text: 'Welk project of initiatief ben je momenteel het meest trots op?' },
-    { emoji: '🤝', text: 'Hoe zou jij omschrijven hoe jij samenwerkt met collega\'s?' },
-    { emoji: '📅', text: 'Hoe ziet jouw ideale werkdag eruit?' },
-    { emoji: '🔑', text: 'Welke vaardigheid heeft je het meest geholpen in je werk als ambassadeur?' },
+    { emoji: '🦸', text: 'Als jouw functie een superheld zou zijn, welke superkracht hoort daarbij?' },
+    { emoji: '🎭', text: 'Beschrijf jouw werk in één zin alsof je het uitlegt aan een kind van 8.' },
+    { emoji: '🏆', text: 'Wat is het meest bijzondere dat je ooit voor elkaar hebt gekregen op je werk?' },
+    { emoji: '😅', text: 'Wat is iets wat jij op je werk doet wat niemand ooit ziet, maar zonder jou niet zou gebeuren?' },
+    { emoji: '🎯', text: 'Waar spring jij écht uit je vel van als het goed gaat op je werk?' },
+    { emoji: '🔋', text: 'Wat geeft jou de meeste energie op een werkdag?' },
+    { emoji: '🌀', text: 'Wat is het meest onverwachte wat je hebt geleerd in je huidige functie?' },
   ],
   ambities: [
-    { emoji: '🚀', text: 'Wat is één ding dat je dit jaar wilt bereiken als ambassadeur?' },
-    { emoji: '🌍', text: 'Als je één verandering in de organisatie kon aanbrengen, wat zou dat zijn?' },
-    { emoji: '⭐', text: 'Waar wil jij over vijf jaar staan?' },
-    { emoji: '💡', text: 'Welk idee heb je al lang maar nog niet uitgevoerd?' },
-    { emoji: '🏆', text: 'Op welk persoonlijk succes ben je het meest trots?' },
+    { emoji: '🚀', text: 'Als je morgen een compleet nieuw project mocht starten, wat zou het zijn?' },
+    { emoji: '🌍', text: 'Als je één ding in de organisatie zou kunnen veranderen met een toverstaf, wat zou dat zijn?' },
+    { emoji: '⭐', text: 'Wat staat er op jouw persoonlijke bucketlist — werk of privé?' },
+    { emoji: '💡', text: 'Welk idee heb je al een tijdje, maar nog nooit hardop uitgesproken?' },
+    { emoji: '🎓', text: 'Wat wil je dit jaar nog leren of ontdekken?' },
+    { emoji: '🌱', text: 'Op welk vlak wil jij de komende tijd groeien?' },
   ],
-  ambassadeur: [
-    { emoji: '🌟', text: 'Wat betekent het ambassadeurschap voor jou persoonlijk?' },
-    { emoji: '📣', text: 'Hoe vertel jij buiten de organisatie over je werk als ambassadeur?' },
-    { emoji: '🔗', text: 'Welke verbinding of samenwerking heeft jou als ambassadeur het meest opgeleverd?' },
-    { emoji: '💬', text: 'Wat is de mooiste reactie die je ooit kreeg toen je iemand vertelde over jouw ambassadeursrol?' },
-    { emoji: '🎯', text: 'Welke boodschap wil jij als ambassadeur overbrengen op anderen?' },
+  kennis: [
+    { emoji: '🗺️', text: 'Waar kom jij vandaan en wat is het leukste aan die plek?' },
+    { emoji: '🎨', text: 'Wat doe jij buiten je werk wat de meeste collega\'s niet van je weten?' },
+    { emoji: '🎵', text: 'Welk nummer staat er altijd op als jij iets te vieren hebt?' },
+    { emoji: '🍕', text: 'Wat is jouw ultieme feelgood-maaltijd en waarom?' },
+    { emoji: '📺', text: 'Welke serie of film zou je iedereen aanraden?' },
+    { emoji: '✈️', text: 'Wat is de mooiste plek waar je ooit bent geweest?' },
+    { emoji: '🧩', text: 'Wat is een feitje over jezelf waarmee je mensen altijd verrast?' },
   ],
   fun: [
-    { emoji: '☕', text: 'Koffie of thee — en waarom? Vertel iets over jezelf via die keuze.' },
-    { emoji: '🏖️', text: 'Wat doe jij het liefst op een vrije dag?' },
-    { emoji: '🎵', text: 'Welk nummer zou jouw persoonlijk ambassadeurs-thema zijn?' },
-    { emoji: '🦸', text: 'Welke superkracht zou jij willen hebben op het werk?' },
-    { emoji: '🌮', text: 'Je organiseert een etentje voor je team — wat staat er op het menu en waarom?' },
-    { emoji: '📚', text: 'Welk boek, film of podcast heeft jou recent geïnspireerd?' },
-    { emoji: '🐾', text: 'Als jij een dier was dat jouw werkstijl vertegenwoordigt, welk dier zou dat zijn?' },
+    { emoji: '☕', text: 'Koffie of thee — en wat zegt dat over jou?' },
+    { emoji: '🐾', text: 'Als jij een dier was dat jouw persoonlijkheid omschrijft, welk dier zou dat zijn en waarom?' },
+    { emoji: '🏝️', text: 'Je zit een week op een onbewoond eiland en mag drie dingen meenemen. Wat neem je mee?' },
+    { emoji: '🎤', text: 'Welk nummer zing jij altijd mee als het op de radio komt, of je het nu wilt of niet?' },
+    { emoji: '🦸', text: 'Welke bekende persoon zou jij een dag willen zijn, en waarom?' },
+    { emoji: '🌮', text: 'Je mag een teamlunch organiseren. Wat staat er op het menu?' },
+    { emoji: '⏰', text: 'Ben jij eerder te vroeg of te laat, en heb je een goed excuus?' },
+    { emoji: '🔮', text: 'Als je in de toekomst kon kijken, welke vraag zou je dan stellen?' },
   ],
   reflectie: [
-    { emoji: '🪞', text: 'Wat heb jij het afgelopen jaar geleerd over jezelf als ambassadeur?' },
-    { emoji: '🔋', text: 'Wat geeft jou energie in je werk en wat kost energie?' },
-    { emoji: '💭', text: 'Welke aanname over je werk ben je dit jaar kwijtgeraakt?' },
-    { emoji: '🌱', text: 'Op welk vlak wil jij nog groeien?' },
-    { emoji: '🎁', text: 'Welk advies zou jij aan je begin-ambassadeur-zelf geven?' },
+    { emoji: '🪞', text: 'Wat is iets wat je het afgelopen jaar over jezelf hebt ontdekt?' },
+    { emoji: '💭', text: 'Welke overtuiging heb je losgelaten die je vroeger stevig vasthield?' },
+    { emoji: '🎁', text: 'Welk advies zou jij aan je jongere zelf geven?' },
+    { emoji: '🌟', text: 'Wanneer voelde jij je de afgelopen tijd écht op je plek?' },
+    { emoji: '🤝', text: 'Wie heeft jou het meest gevormd als persoon, en waarom?' },
   ],
 };
 
@@ -883,7 +889,7 @@ function hasRepeatPairs(pairs, used) {
 }
 
 function getCategoryLabel(q) {
-  const labels = { werk:'Werk & Rol', ambities:'Ambities', ambassadeur:'Ambassadeurschap', fun:'Luchtig', reflectie:'Reflectie' };
+  const labels = { werk:"Werk & Collega's", ambities:'Ambities & Dromen', kennis:'Elkaar leren kennen', fun:'Luchtig & Fun', reflectie:'Reflectie' };
   for (const [cat, qs] of Object.entries(QUESTIONS)) {
     if (qs.some(x => x.text === q.text)) return labels[cat] || '';
   }
