@@ -343,16 +343,10 @@
       <div class="question-text" id="p-q-text">Vraag verschijnt hier...</div>
     </div>
 
-    <div id="p-second-q-wrap">
-      <button class="btn btn-outline btn-full" onclick="showSecondQuestion()" id="p-second-q-btn">
-        💬 Nog tijd over? Bekijk een tweede vraag
-      </button>
-      <div id="p-second-q-card" class="question-card" style="display:none; background: linear-gradient(135deg, #005a2e 0%, #004d7a 100%);">
-        <div class="emoji" id="p-q2-emoji">🤔</div>
-        <div class="category-badge" id="p-q2-category">Categorie</div>
-        <div class="question-text" id="p-q2-text">Vraag verschijnt hier...</div>
-      </div>
-    </div>
+    <div id="p-extra-questions"></div>
+    <button class="btn btn-outline btn-full" onclick="showNextQuestion()" id="p-next-q-btn" style="display:none;">
+      💬 Volgende vraag →
+    </button>
 
     <div class="card">
       <div class="section-title" style="margin-bottom:0.4rem;">Tips voor een goed gesprek</div>
@@ -498,7 +492,7 @@ function startGame() {
   selectedCategories = getSelectedCategories();
 
   let pool = buildQuestionPool(selectedCategories);
-  while (pool.length < totalRounds * 2) pool = pool.concat(buildQuestionPool(selectedCategories));
+  while (pool.length < totalRounds * QUESTIONS_PER_ROUND) pool = pool.concat(buildQuestionPool(selectedCategories));
   gameQuestions = pool;
 
   sessionCode = generateCode();
@@ -580,16 +574,18 @@ function showRound(roundIndex) {
   startTimer();
 }
 
+const QUESTIONS_PER_ROUND = 4;
+
 function pushStateToFirebase(roundIndex, qIdx, status) {
   if (!sessionRef) return;
-  const q = gameQuestions[roundIndex * 2] || null;
-  const q2 = gameQuestions[roundIndex * 2 + 1] || null;
+  const start = roundIndex * QUESTIONS_PER_ROUND;
+  const roundQs = gameQuestions.slice(start, start + QUESTIONS_PER_ROUND);
   sessionRef.update({
     status,
     currentRound: roundIndex,
     currentQIndex: qIdx,
-    currentQuestion: q,
-    secondQuestion: q2,
+    currentQuestion: roundQs[0] || null,
+    roundQuestions: roundQs,
     timerStart: firebase.database.ServerValue.TIMESTAMP,
     timerDuration: minutesPerRound * 60,
     timerPaused: false,
@@ -736,9 +732,26 @@ function joinSession() {
   });
 }
 
-function showSecondQuestion() {
-  document.getElementById('p-second-q-btn').style.display = 'none';
-  document.getElementById('p-second-q-card').style.display = 'flex';
+function showNextQuestion() {
+  pCurrentQIndex++;
+  const q = pRoundQuestions[pCurrentQIndex];
+  if (!q) return;
+
+  // Voeg de nieuwe vraag toe onder de vorige
+  const container = document.getElementById('p-extra-questions');
+  const card = document.createElement('div');
+  card.className = 'question-card';
+  card.style.background = 'linear-gradient(135deg, #005a2e 0%, #004d7a 100%)';
+  card.innerHTML = `
+    <div class="emoji">${q.emoji || '🤔'}</div>
+    <div class="category-badge">${q.category || ''}</div>
+    <div class="question-text">${q.text}</div>
+  `;
+  container.appendChild(card);
+
+  // Knop verbergen als er geen vragen meer zijn
+  document.getElementById('p-next-q-btn').style.display =
+    pCurrentQIndex < pRoundQuestions.length - 1 ? 'block' : 'none';
 }
 
 function showJoinError(msg) {
@@ -747,6 +760,8 @@ function showJoinError(msg) {
 }
 
 let pTimerInterval = null;
+let pCurrentQIndex = 0;
+let pRoundQuestions = [];
 
 function updateParticipantView(state) {
   const roundIndex = state.currentRound || 0;
@@ -794,22 +809,26 @@ function updateParticipantView(state) {
     badge.innerHTML = `<div class="partner-label">Jouw gesprekspartner deze ronde</div><div class="partner-name">${partner}</div>`;
   }
 
-  // Question 1
-  if (q) {
-    document.getElementById('p-q-emoji').textContent = q.emoji || '🤔';
-    document.getElementById('p-q-text').textContent = q.text || '';
-    document.getElementById('p-q-category').textContent = q.category || '';
+  // Vragenreeks voor deze ronde — reset bij nieuwe ronde
+  const newRoundQs = state.roundQuestions || (q ? [q] : []);
+  const isNewRound = JSON.stringify(newRoundQs) !== JSON.stringify(pRoundQuestions);
+  if (isNewRound) {
+    pRoundQuestions = newRoundQs;
+    pCurrentQIndex = 0;
+    document.getElementById('p-extra-questions').innerHTML = '';
   }
 
-  // Question 2 — reset knop zodat elk nieuw ronde opnieuw verborgen begint
-  document.getElementById('p-second-q-card').style.display = 'none';
-  document.getElementById('p-second-q-btn').style.display = 'block';
-  const q2 = state.secondQuestion;
-  if (q2) {
-    document.getElementById('p-q2-emoji').textContent = q2.emoji || '🤔';
-    document.getElementById('p-q2-text').textContent = q2.text || '';
-    document.getElementById('p-q2-category').textContent = q2.category || '';
+  // Vraag 1 altijd tonen
+  if (pRoundQuestions[0]) {
+    const q0 = pRoundQuestions[0];
+    document.getElementById('p-q-emoji').textContent = q0.emoji || '🤔';
+    document.getElementById('p-q-text').textContent = q0.text || '';
+    document.getElementById('p-q-category').textContent = q0.category || '';
   }
+
+  // Volgende vraag knop tonen als er meer zijn
+  document.getElementById('p-next-q-btn').style.display =
+    pCurrentQIndex < pRoundQuestions.length - 1 ? 'block' : 'none';
 
   // Timer — sync from server timestamp
   clearInterval(pTimerInterval);
