@@ -628,8 +628,9 @@ function tickTimer() {
   updateTimerUI();
   if (timerSecondsLeft <= 0) {
     stopTimer();
-    document.getElementById('timer-text').textContent = '⏰ Tijd is om!';
+    document.getElementById('timer-text').textContent = '⏰ Volgende ronde start...';
     setBarColor(document.getElementById('timer-bar'), 0);
+    setTimeout(nextRound, 3000);
   }
 }
 
