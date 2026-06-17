@@ -416,6 +416,20 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// Oude sessies opruimen (ouder dan 24 uur) — draait bij elke keer dat de app wordt geopend
+function cleanupOldSessions() {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+  db.ref('sessions').once('value').then(snap => {
+    const sessions = snap.val() || {};
+    Object.entries(sessions).forEach(([code, session]) => {
+      if (!session.createdAt || session.createdAt < cutoff) {
+        db.ref('sessions/' + code).remove();
+      }
+    });
+  }).catch(() => {});
+}
+cleanupOldSessions();
+
 // =====================
 // QUESTIONS
 // =====================
@@ -475,6 +489,7 @@ function startGame() {
   sessionRef = db.ref('sessions/' + sessionCode);
   sessionRef.set({
     status: 'lobby',
+    createdAt: Date.now(),
     totalRounds,
     minutesPerRound,
     currentRound: 0,
