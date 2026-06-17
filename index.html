@@ -161,6 +161,12 @@
       background: #f0f4ff; border-radius: 0.5rem; padding: 0.4rem 0.8rem; font-size: 0.9rem;
     }
 
+    @keyframes flashAlert {
+      0%, 100% { background-color: transparent; }
+      15%, 45%, 75% { background-color: rgba(215, 40, 47, 0.35); }
+    }
+    .flash-end { animation: flashAlert 1.4s ease-in-out 2; }
+
     @media (max-width: 360px) {
       h1 { font-size: 1.4rem; }
       .question-card .question-text { font-size: 1.05rem; }
@@ -630,6 +636,9 @@ function tickTimer() {
     stopTimer();
     document.getElementById('timer-text').textContent = '⏰ Volgende ronde start...';
     setBarColor(document.getElementById('timer-bar'), 0);
+    playEndSound();
+    document.body.classList.add('flash-end');
+    setTimeout(() => document.body.classList.remove('flash-end'), 3000);
     setTimeout(nextRound, 3000);
   }
 }
@@ -652,6 +661,24 @@ function setBarColor(el, pct) {
 }
 
 function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+
+function playEndSound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const playBeep = (delay) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.4);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.4);
+    };
+    playBeep(0); playBeep(0.5); playBeep(1.0);
+  } catch (e) { /* geluid niet beschikbaar */ }
+}
 
 function togglePause() {
   timerPaused = !timerPaused;
@@ -807,6 +834,7 @@ function updateParticipantView(state) {
   const timerStart = state.timerStart || Date.now();
   const paused = state.timerPaused || false;
 
+  let pAlertFired = false;
   function tickP() {
     if (paused) return;
     const elapsed = Math.floor((Date.now() - timerStart) / 1000);
@@ -816,6 +844,12 @@ function updateParticipantView(state) {
     document.getElementById('p-timer-text').textContent = left === 0 ? '⏰ Tijd is om!' : `${mins}:${String(secs).padStart(2,'0')}`;
     document.getElementById('p-timer-bar').style.width = ((left / duration) * 100) + '%';
     setBarColor(document.getElementById('p-timer-bar'), (left / duration) * 100);
+    if (left === 0 && !pAlertFired) {
+      pAlertFired = true;
+      playEndSound();
+      document.body.classList.add('flash-end');
+      setTimeout(() => document.body.classList.remove('flash-end'), 3000);
+    }
   }
   tickP();
   pTimerInterval = setInterval(tickP, 1000);
